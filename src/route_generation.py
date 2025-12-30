@@ -56,8 +56,6 @@ def get_bus_candidate_routes(
         destination = (dest_lat, dest_lon),
         mode = "transit",
         departure_time = departure_time,
-        allowedTravelModes = "BUS",
-        routingPerference = "FEWER_TRANSFERS",
         language = "ko",
         alternatives = True
     )
