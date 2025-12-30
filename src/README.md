@@ -1,0 +1,1 @@
+- trajectory_builder.py: 유동인구의 속도 0인 중복 좌표 데이터 삭제 및 TRIP_NO 별 시간 순으로 정렬하여 선 데이터로 변경

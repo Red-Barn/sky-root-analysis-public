@@ -1,0 +1,4 @@
+raw_data/*.csv
+compressed_data/*.csv
+.env
+.env.*
