@@ -11,8 +11,8 @@ from route_improvement import is_improvement_required
 # =========================
 # 환경 설정
 # =========================
-CSV_PATH = "data/trips.csv"
-OUTPUT_PATH = "output/analysis_result.csv"
+CSV_PATH = r"C:\mygit\SkyRoot\result\2024-08-19.csv"
+OUTPUT_PATH = r"C:\mygit\SkyRoot\trip_analysis_result\2024-08-19.csv"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -84,7 +84,7 @@ def analyze_trip(trip_no, df_trip):
     )
 
     # Step 3: 이탈 지점 탐지
-    clusters, has_deviation = detect_deviation_clusters(
+    clusters, max_cluster_size, has_deviation = detect_deviation_clusters(
         actual_coords,
         metrics["distances"]
     )
@@ -106,6 +106,7 @@ def analyze_trip(trip_no, df_trip):
         "max_dist": metrics["max"],
         "has_deviation": has_deviation,
         "num_deviation_clusters": len(clusters),
+        "max_cluster_size": max_cluster_size,
         "improve_required": improve_required
     }
 

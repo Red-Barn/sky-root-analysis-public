@@ -50,5 +50,10 @@ def detect_deviation_clusters(
         if label == -1:
             continue
         clusters.setdefault(label, []).append(idx[i])
+        
+    max_cluster_size = max(
+        [sum(labels == k) for k in set(labels) if k != -1],
+        default=0
+    )
 
-    return clusters, len(clusters) > 0
+    return clusters, max_cluster_size, len(clusters) > 0
