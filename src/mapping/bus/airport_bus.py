@@ -1,0 +1,105 @@
+import pandas as pd
+import torch
+from tqdm import tqdm
+from trajectory.haversine import cdist
+
+# 경로가 어떤 버스 정류장을 지나는지 확인하는 함수
+def check_paths_air_bus_stops_GPU(paths, bus_stops, bus_threshold_m=50, device = torch.device('cpu')):
+    bus_result = {}
+    
+    bus_stops = bus_stops[~bus_stops['정류소명'].str.contains(r'\(가상\)|\(미정차\)', regex=True)]
+    # 조건에 맞는 ARS_ID 추출
+    arrived_bus_stops = bus_stops[bus_stops['정류소명'].str.contains('인천공항') &
+                                     ~bus_stops['정류소명'].str.contains(r'\(가상\)|\(미정차\)|KT|전망대|검역소|충전소|주차장', regex=True)]['ARS_ID'].unique()
+
+    
+    # 모든 좌표를 텐서로 변환하여 한 번에 처리
+    bus_stop_coords = torch.tensor(bus_stops[['X좌표', 'Y좌표']].values).to(device)
+    
+    for person_code, path in tqdm(paths.items(), total=len(paths), desc='Checking paths'):
+        passed_bus_info = []
+        visited_bus_stops = set()
+        
+        # 각 경로의 좌표와 시간 데이터 분리
+        times = path[:, 1]  # 시간
+        coords = path[:, 2:].astype(float)  # 좌표
+        
+        # 경로 좌표를 텐서로 변환
+        path_points = torch.tensor(coords).to(device)
+        
+        # 거리 계산을 벡터화하여 한 번에 수행
+        bus_distances = cdist(path_points, bus_stop_coords)  # 각 경로와 버스 정류장 간의 거리 계산
+        torch.cuda.empty_cache()
+        
+        # 설정한 거리 기준, 가까운 정류장 찾기
+        near_bus_stops = bus_distances <= bus_threshold_m
+
+        for i in range(len(times)):
+            time = times[i]
+            busroot = bus_stops['노선명'].values[near_bus_stops[i].cpu()]
+            busstop = bus_stops['ARS_ID'].values[near_bus_stops[i].cpu()]
+            busstop_name = bus_stops['정류소명'].values[near_bus_stops[i].cpu()]
+            
+            # 버스 정류장 통과 기록
+            visited_bus_stops.update(set(busstop))
+            
+            # 버스 정류장을 지날 경우 bus_passed_entries에 추가
+            if busroot.size > 0:
+                passed_bus_info.append([time, list(set(busroot)), list(set(busstop)), list(set(busstop_name)), '공항버스'])
+              
+        # 뒤에서부터 순회로 도착 중복 정류장 제거
+        for i in range(len(passed_bus_info) -1, 0, -1):
+            currentstop = passed_bus_info[i][3]
+            nextstop = passed_bus_info[i-1][3]
+            if currentstop == nextstop:
+                del passed_bus_info[i]
+            else:
+                break 
+        
+        # passed_bus_info가 비어있거나, 1개만 남으면 데이터 삭제
+        if not passed_bus_info or len(passed_bus_info) == 1:
+            continue
+        
+        # 모든 노선명을 수집
+        all_bus_routes = [route for entry in passed_bus_info for route in entry[1]]
+
+        # 마지막 노선들에 해당하는 모든 노선들의 빈도 계산
+        filtered_routes = [route for route in all_bus_routes]
+        route_counts = pd.Series(filtered_routes).value_counts()
+
+        # 가장 많이 나타난 노선명 추출
+        most_common_route = route_counts.idxmax() if not route_counts.empty else None
+    
+        # passed_bus_info에서 most_common_route가 없는 항목 삭제
+        if most_common_route:
+            # most_common_route에 해당하는 정류장 정보 필터링
+            route_bus_stops = bus_stops[bus_stops['노선명'] == most_common_route]
+            
+            # ARS_ID와 정류소명을 딕셔너리로 매핑
+            ars_to_name = dict(zip(route_bus_stops['ARS_ID'], route_bus_stops['정류소명']))
+            
+            # passed_bus_info 필터링 및 업데이트
+            passed_bus_info = [entry for entry in passed_bus_info if most_common_route in entry[1]]
+            
+            # passed_bus_info의 모든 list(set(busroot))를 most_common_route로 변경
+            for entry in passed_bus_info:
+                # 기존의 busstop(ARS_ID)와 정류소명 업데이트
+                entry[2] = [stop for stop in entry[2] if stop in ars_to_name]  # 유효한 ARS_ID만 유지
+                entry[3] = [ars_to_name[stop] for stop in entry[2]]  # 해당 정류소명 매핑
+        
+                # 모든 entry[1]을 most_common_route로 변경
+                entry[1] = [most_common_route]
+                
+        # 마지막 ARS_ID가 arrived_bus_stops 에 없을 시 데이터 삭제
+        if not any(stop in arrived_bus_stops for stop in passed_bus_info[-1][2]):
+            continue
+
+        # arrived_bus_stops에 있는 정류장을 제외한 정류장이 없을 시 데이터 삭제
+        if not any(stop not in arrived_bus_stops for entry in passed_bus_info for stop in entry[2]):
+            continue
+                  
+        # 버스 시간 차이가 20분 이상일 때
+        if passed_bus_info[-1][0] - passed_bus_info[0][0] > pd.Timedelta(minutes=20):
+            bus_result[person_code] = passed_bus_info   
+                
+    return bus_result
