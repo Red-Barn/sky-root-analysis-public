@@ -8,7 +8,7 @@ def compress_folder(input_dir: Path, output_dir: Path):
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    for file_path in tqdm(list(input_dir.glob("*.csv")), desc="Compressing files"):
+    for file_path in tqdm(list(input_dir.glob("*.csv")), desc="Compressing files", position=0):
         df = pd.read_csv(file_path)
         
         compressed_df = compress_dataframe(df)
@@ -30,8 +30,10 @@ def compress_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     results = []
     
+    grouped = df.groupby('TRIP_NO')
+    
     # 각 TRIP_NO 그룹에 대해 처리
-    for _, group in df.groupby('TRIP_NO'):
+    for _, group in tqdm(grouped, total=grouped.ngroups, desc="Compressing trips", position=1, leave=False):
         # DYNA_MVMT_SPED가 0인 행만 필터링
         zero_speed_df = group[group['DYNA_MVMT_SPED'] == 0].copy()
         

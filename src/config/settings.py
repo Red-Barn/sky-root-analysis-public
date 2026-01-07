@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[1]  # sky-root-analysis
+BASE_DIR = Path(__file__).resolve().parents[2]  # sky-root-analysis
 
 DATA_DIR = BASE_DIR / "data"
 RESULT_DIR = BASE_DIR / "result"

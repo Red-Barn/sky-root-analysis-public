@@ -9,6 +9,8 @@ class RuntimeContext:
     similarity: RouteSimilarityPolicy
     deviation: DeviationPolicy
     improvement: ImprovementPolicy
+    distance: BusDistancePolicy
+    severity: SeverityScorePolicy
 
 
 def create_runtime_context(verbose=False) -> RuntimeContext:
@@ -25,6 +27,6 @@ def create_runtime_context(verbose=False) -> RuntimeContext:
         similarity=RouteSimilarityPolicy(),
         deviation=DeviationPolicy(),
         improvement=ImprovementPolicy(),
-        distnace=BusDistancePolicy(),
+        distance=BusDistancePolicy(),
         severity=SeverityScorePolicy()
         )

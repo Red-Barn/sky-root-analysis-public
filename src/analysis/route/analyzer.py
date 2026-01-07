@@ -1,5 +1,7 @@
 import pandas as pd
+import traceback
 from datetime import datetime, timedelta
+from tqdm import tqdm
 
 from src.analysis.route.generation import get_bus_candidate_routes
 from src.analysis.route.similarity import select_best_route_gpu
@@ -32,13 +34,11 @@ def extract_actual_trip_coords(df_trip):
 
 # Trip 단위 분석
 def analyze_trip(trip_no, df_trip, ctx):
-    print(f"\n[Trip 분석 시작] {trip_no}")
-
     emd_code = df_trip.iloc[0]["EMD_CODE"]
     actual_coords = extract_actual_trip_coords(df_trip)
 
     if len(actual_coords) < 10:
-        print("좌표 부족 → 스킵")
+        tqdm.write(f"{trip_no}: 좌표 부족({len(actual_coords)}개) -> 스킵")
         return None
 
     origin_lat, origin_lon = actual_coords[0]
@@ -50,7 +50,7 @@ def analyze_trip(trip_no, df_trip, ctx):
     candidate_routes = get_bus_candidate_routes(origin_lat, origin_lon, dest_lat, dest_lon, departure_time)
 
     if not candidate_routes:
-        print("버스 후보 경로 없음")
+        tqdm.write("버스 후보 경로 없음")
         return {
             "TRIP_NO": trip_no,
             "has_candidate": False
@@ -82,13 +82,20 @@ def analyze_trip(trip_no, df_trip, ctx):
     
 def analyze_trips(df, ctx):
     results = []
+    
+    grouped = df.groupby("TRIP_NO")
+    
+    pbar = tqdm(grouped, total=grouped.ngroups, desc="Analyzing Trips", position=1, leave=False)
 
-    for trip_no, df_trip in df.groupby("TRIP_NO"):
+    for trip_no, df_trip in pbar:
         try:
+            pbar.set_postfix_str(f"ID: {trip_no}")
+            
             res = analyze_trip(trip_no, df_trip, ctx)
             if res:
                 results.append(res)
         except Exception as e:
-            print(f"[에러] {trip_no}: {e}")
+            tqdm.write(f"[Error] {trip_no}: {e}")
+            tqdm.write(traceback.format_exc())
 
     return pd.DataFrame(results)

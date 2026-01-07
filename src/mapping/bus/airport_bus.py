@@ -16,7 +16,7 @@ def check_paths_air_bus_stops_GPU(paths, bus_stops, bus_threshold_m=50, device =
     # 모든 좌표를 텐서로 변환하여 한 번에 처리
     bus_stop_coords = torch.tensor(bus_stops[['X좌표', 'Y좌표']].values).to(device)
     
-    for person_code, path in tqdm(paths.items(), total=len(paths), desc='Checking paths'):
+    for person_code, path in tqdm(paths.items(), total=len(paths), desc='Checking paths', position=1, leave=False):
         passed_bus_info = []
         visited_bus_stops = set()
         

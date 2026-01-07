@@ -1,4 +1,5 @@
 import pandas as pd
+from tqdm import tqdm
 
 from src.config.settings import COMPRESSED_DATA_DIR, MAPPING_DATA_DIR
 from src.config.runtime import create_runtime_context
@@ -16,7 +17,7 @@ def run_mapping():
     airbusrootDF = load_air_bus()
     citybusrootDF = load_city_bus()
     
-    for file_path in COMPRESSED_DATA_DIR.glob("*.csv"):
+    for file_path in tqdm(list(COMPRESSED_DATA_DIR.glob("*.csv")), desc="Mapping files", position=0):
         peopleDF = pd.read_csv(file_path)
         
         # 공항버스

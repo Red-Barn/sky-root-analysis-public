@@ -1,8 +1,10 @@
+from tqdm import tqdm
+
 # 한 정거장에 여러 버스가 정거하는 도시 버스 특성상 그 연속성을 교집합으로 계산
 def find_routes_passing_stops(bus):
     check_normal_bus = {}
     
-    for key, values in bus.items():
+    for key, values in tqdm(bus.items(), total=len(bus), desc='Intersecting paths', position=1, leave=False):
         times = [value[0] for value in values]
         roots = [value[1] for value in values]
         stops = [value[2] for value in values]
