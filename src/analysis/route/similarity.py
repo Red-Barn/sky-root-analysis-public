@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from trajectory.haversine import cdist
+from src.trajectory.haversine import cdist
 
 def to_tensor(coords, device):
     """
@@ -13,12 +13,7 @@ def to_tensor(coords, device):
         device=device
     )
     
-def evaluate_route_gpu(
-    actual_coords,
-    route_coords,
-    device = "cuda" if torch.cuda.is_available() else "cpu",
-    near_threshold = 100    # 오차범위 = 100m
-):
+def evaluate_route_gpu(actual_coords, route_coords, near_threshold=100, device=torch.device("cpu")):
     A = to_tensor(actual_coords, device)
     R = to_tensor(route_coords, device)
     
@@ -38,7 +33,7 @@ def evaluate_route_gpu(
         "distances" : distances
     }
     
-def select_best_route_gpu(actual_coords, candidate_routes):
+def select_best_route_gpu(actual_coords, candidate_routes, policy, device):
     best_idx = None
     best_score = float("inf")
     best_result = None
@@ -47,7 +42,7 @@ def select_best_route_gpu(actual_coords, candidate_routes):
         if len(actual_coords) == 0 or len(route) == 0:
             return None
         
-        res = evaluate_route_gpu(actual_coords, route)
+        res = evaluate_route_gpu(actual_coords, route, near_threshold = policy.near_threshold, device=device)
         
         """
         이 부분의 핵심기준의 정의가 좀더 필요함

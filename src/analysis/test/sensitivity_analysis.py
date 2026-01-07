@@ -1,7 +1,7 @@
 import pandas as pd
 from itertools import product
-from route_improvement import improvement_required_custom
-from config.settings import ROUTE_OUTPUT_PATH, SENSITIVITY_OUTPUT_PATH
+from src.analysis.route.improvement import improvement_required_custom
+from src.config.settings import RESULT_TRIP_DIR, RESULT_SENSITIVITY_DIR
 
 def run_sensitivity_analysis(df):
     cluster_sizes = [3, 5, 7]
@@ -37,10 +37,10 @@ def run_sensitivity_analysis(df):
 
 
 def main():
-    df = pd.read_csv(ROUTE_OUTPUT_PATH)
+    df = pd.read_csv(RESULT_TRIP_DIR)
     result = run_sensitivity_analysis(df)
-    result.to_csv(SENSITIVITY_OUTPUT_PATH, index=False)
-    print("민감도 분석 완료:",SENSITIVITY_OUTPUT_PATH)
+    result.to_csv(RESULT_SENSITIVITY_DIR, index=False)
+    print("민감도 분석 완료:",RESULT_SENSITIVITY_DIR)
 
 
 if __name__ == "__main__":

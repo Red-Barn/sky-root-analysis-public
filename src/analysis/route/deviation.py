@@ -13,19 +13,16 @@ def build_deviation_features(actual_coords, distances):
 
     return np.array(X)
 
-def detect_deviation_clusters(
-    actual_coords,
-    distances,
-    dist_threshold=150, # 이탈 범위 = 150m
-    eps=0.0005,         # 약 50m (위도 기준)
-    min_samples=5
-):
+def detect_deviation_clusters(actual_coords, distances, policy):
     """
     return:
       - deviation_clusters: {cluster_id: [indices]}
       - max_cluster_size: int
       - has_deviation: bool
     """
+    dist_threshold=policy.dist_threshold 
+    eps=policy.eps         
+    min_samples=policy.min_samples
 
     # 1. 이탈 후보만 추림
     idx = np.where(distances > dist_threshold)[0]

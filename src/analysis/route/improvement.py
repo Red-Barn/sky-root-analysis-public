@@ -1,11 +1,7 @@
 import pandas as pd
 from itertools import product
 
-def is_improvement_required(
-    metrics,
-    deviation_clusters,
-    max_cluster_size
-    ):
+def is_improvement_required(metrics, deviation_clusters, max_cluster_size, policy):
     """
     metrics: Step 2 결과 dict
     deviation_clusters: Step 3 결과
@@ -15,9 +11,9 @@ def is_improvement_required(
     if not deviation_clusters:
         return False
 
-    A = max_cluster_size >= 5
-    B = metrics["median"] >= 150 and metrics["near_ratio"] <= 0.5
-    C = metrics["max"] >= 1000
+    A = max_cluster_size >= policy.max_cluster_size_threshold
+    B = metrics["median"] >= policy.median_dist_threshold and metrics["near_ratio"] <= policy.near_ratio_threshold
+    C = metrics["max"] >= policy.max_dist_threshold
 
     return A and (B or C)
 

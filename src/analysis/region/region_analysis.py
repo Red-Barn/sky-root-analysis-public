@@ -3,7 +3,7 @@ import pandas as pd
 def normalize(series):
     return (series - series.min()) / (series.max() - series.min() + 1e-6)
 
-def region_level_analysis(df):
+def region_level_analysis(df, policy):
     
     df = df[df["has_candidate"] == True].copy()
     
@@ -22,9 +22,9 @@ def region_level_analysis(df):
 
     # Severity Score (가중치는 보고서에서 설명)
     grouped["severity_score"] = (
-        0.5 * grouped["improve_ratio"]
-        + 0.3 * grouped["median_norm"]
-        + 0.2 * grouped["cluster_norm"]
+        policy.improve_ratio_threshold * grouped["improve_ratio"]
+        + policy.median_norm_threshold * grouped["median_norm"]
+        + policy.cluster_norm_threshold * grouped["cluster_norm"]
     )
 
     return grouped.sort_values("severity_score", ascending=False)

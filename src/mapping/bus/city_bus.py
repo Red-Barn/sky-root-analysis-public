@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import torch
 from tqdm import tqdm
-from trajectory.haversine import cdist
+from src.trajectory.haversine import cdist
 
 # 경로가 어떤 버스 정류장을 지나는지 확인하는 함수
 def check_paths_city_bus_stops_GPU(paths, bus_stops, bus_threshold_m=50, device = torch.device('cpu')):
