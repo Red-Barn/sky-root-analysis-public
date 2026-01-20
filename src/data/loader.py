@@ -1,6 +1,7 @@
 import pandas as pd
+import geopandas as gpd
 from functools import lru_cache
-from src.config.settings import OPEN_DATA_DIR, RAW_DATA_DIR, COMPRESSED_DATA_DIR, MAPPING_DATA_DIR, PROCESSED_DATA_DIR, RESULT_TRIP_DIR, RESULT_REGION_DIR, RESULT_SENSITIVITY_DIR
+from src.config.settings import OPEN_DATA_DIR, DATA_DIR, RESULT_REGION_DIR, RESULT_TRIP_DIR
 
 
 @lru_cache
@@ -20,27 +21,27 @@ def load_emd():
     return pd.read_json(
         OPEN_DATA_DIR / "emd_WGS84.json"
     )
-    
+
 @lru_cache
-def load_raw_data():
-    return pd.read_csv(
-        RAW_DATA_DIR / "2024-08-19.csv"
+def load_gpd_emd():
+    return gpd.read_file(
+        OPEN_DATA_DIR / "emd_WGS84.json"
     )
     
 @lru_cache
-def load_compressed_data():
+def load_all_trips():
     return pd.read_csv(
-        COMPRESSED_DATA_DIR / "2024-08-19.csv"
+        DATA_DIR / "processed_all_trips.csv"
     )
     
 @lru_cache
-def load_mapping_data():
+def load_analysis_trips():
     return pd.read_csv(
-        MAPPING_DATA_DIR / "2024-08-19.csv"
+        RESULT_TRIP_DIR / "routes_analysis_all_trips.csv"
     )
     
 @lru_cache
-def load_processed_data():
+def load_analysis_region():
     return pd.read_csv(
-        PROCESSED_DATA_DIR / "2024-08-19.csv"
+        RESULT_REGION_DIR / "region_analysis_all_trips.csv"
     )
