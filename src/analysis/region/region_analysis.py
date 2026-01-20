@@ -13,6 +13,8 @@ def region_level_analysis(df, policy):
         avg_median_dist=("median_dist", "mean"),
         avg_max_cluster=("max_cluster_size", "mean")
     ).reset_index()
+    
+    grouped = grouped[grouped["total_trips"] >= policy.min_total_trips]
 
     grouped["improve_ratio"] = grouped["improve_trips"] / grouped["total_trips"]
 

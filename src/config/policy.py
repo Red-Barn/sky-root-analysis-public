@@ -31,3 +31,4 @@ class SeverityScorePolicy:
     improve_ratio_threshold = 0.5
     median_norm_threshold = 0.3
     cluster_norm_threshold = 0.2
+    min_total_trips = 5
