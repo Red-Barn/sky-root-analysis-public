@@ -28,7 +28,7 @@ def detect_deviation_clusters(actual_coords, distances, policy):
     idx = np.where(distances > dist_threshold)[0]
 
     if len(idx) < min_samples:
-        return {}, False
+        return {}, 0, False
 
     filtered_coords = [actual_coords[i] for i in idx]
 
@@ -49,6 +49,6 @@ def detect_deviation_clusters(actual_coords, distances, policy):
             continue
         clusters.setdefault(label, []).append(idx[i])
         
-    max_cluster_size = max([len(v) for v in clusters.values()])
+    max_cluster_size = max([len(v) for v in clusters.values()]) if clusters else 0
 
     return clusters, max_cluster_size, len(clusters) > 0
