@@ -30,18 +30,23 @@ def longest_run(mask):
 
 def is_improvement_required(distances, policy):
     labels, normal_label, dev_label, gmm = gmm_deviation_clusters(distances)
-    probs = gmm.predict_proba(distances.numpy().reshape(-1, 1))
-    mean_conf = probs[:, dev_label][is_deviated].mean()
     
     is_deviated = (labels == dev_label)
-    deviation_ratio = is_deviated.mean()
     
+    probs = gmm.predict_proba(distances.numpy().reshape(-1, 1))
+    
+    if is_deviated.any():
+        mean_conf = probs[:, dev_label][is_deviated].mean()
+    else:
+        mean_conf = 0.0
+    
+    deviation_ratio = is_deviated.mean()
     deviation_score = deviation_ratio * mean_conf
     
     mu = gmm.means_.flatten()
     sigma = np.sqrt(gmm.covariances_.flatten())
     
-    separation = abs(mu[0] - mu[1]) / (sigma[0] + sigma[1])
+    separation = abs(mu[0] - mu[1]) / (sigma[0] + sigma[1] + 1e-12)
     
     need_improvement = (
         deviation_score >= policy.deviation_score_threshold and
