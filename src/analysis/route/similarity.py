@@ -19,16 +19,9 @@ def evaluate_route_gpu(actual_coords, route_coords, near_threshold=100, device=t
     R = to_tensor(route_coords, device)
     
     dist_matrix = cdist(A, R)   # (lon x lat)
-    # min_distances = torch.min(dist_matrix, dim=1).values
-    # distances = min_distances.cpu().numpy()
     dtw, alignment, distances = cdtw(dist_matrix)
     
     return {
-        # "mean": distances.mean(),
-        # "median": float(torch.median(min_distances).cpu()),
-        # "max": distances.max(),
-        # "near_ratio": (distances <= near_threshold).sum() / len(distances),
-        # "distances" : distances,
         "dtw": float(dtw.cpu()),
         "aligment": alignment,
         "distances": distances.cpu()
