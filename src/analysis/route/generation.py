@@ -33,24 +33,30 @@ def get_candidate_total_info(trip_no, data):
 
             rows.append(row)
     return rows
-    
-def get_candidate_routes_info(trip_no, data):
-    rows = []
-    for route_no, route in enumerate(data["routes"]):
-        coords = []
-        for step in route["legs"][0]["steps"]:
-            decoded_points = polyline.decode(step["polyline"]["points"])
-            coords.extend(decoded_points)
 
-        if len(coords) == 0:
+def get_candidate_routes_info(trip_no, df_api_info):
+    if df_api_info.empty:
+        return []
+
+    trip_df = df_api_info[df_api_info["TRIP_NO"] == trip_no]
+    if trip_df.empty:
+        return []
+
+    rows = []
+    for route_no, route_df in trip_df.groupby("ROUTE_NO", sort=True):
+        coords = []
+        for encoded in route_df["POLYLINE"].dropna().tolist():
+            coords.extend(polyline.decode(encoded))
+
+        if not coords:
             continue
-        
+
         rows.append({
             "TRIP_NO": trip_no,
-            "ROUTE_NO": route_no,
-            "POINTS": coords  # [(lat, lon), ...]
+            "ROUTE_NO": int(route_no),
+            "POINTS": coords,   # [(lat, lon), ...]
         })
-        
+
     return rows
 
 def get_bus_candidate_routes(trip_no, origin_lat, origin_lon, dest_lat, dest_lon, departure_time):
@@ -71,6 +77,5 @@ def get_bus_candidate_routes(trip_no, origin_lat, origin_lon, dest_lat, dest_lon
     data = res.json()
     
     candidate_total_info = get_candidate_total_info(trip_no, data)
-    candidate_routes = get_candidate_routes_info(trip_no, data)
     
-    return candidate_total_info, candidate_routes
+    return candidate_total_info

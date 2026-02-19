@@ -35,6 +35,12 @@ def load_all_trips():
     )
     
 @lru_cache
+def load_all_api_info():
+    return pd.read_csv(
+        DATA_DIR / "total_api_info.csv"
+    )
+    
+@lru_cache
 def load_analysis_trips():
     return pd.read_csv(
         RESULT_TRIP_DIR / "routes_analysis_all_trips.csv"
