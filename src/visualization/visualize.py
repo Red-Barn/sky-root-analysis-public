@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import ast
 from pathlib import Path
 from typing import List, Sequence, Tuple
@@ -12,7 +10,6 @@ import pandas as pd
 
 from src.analysis.route.analyzer import extract_actual_trip_coords
 from src.analysis.route.generation import get_candidate_routes_info
-from src.config.settings import RESULT_DIR
 from src.data.loader import load_all_api_info, load_all_trips, load_analysis_region, load_analysis_trips, load_gpd_emd
 
 
@@ -82,7 +79,7 @@ def select_case_trips(top_regions, route_df, cases_per_region):
 
     selected = (
         df.sort_values(
-            by=["EMD_CODE", "improve_required", "deviation_score", "longest_deviation", "separation", "dtw"],
+            by=["EMD_CODE", "improve_required", "deviation_score", "longest_deviation_ratio", "separation", "dtw"],
             ascending=[True, False, False, False, False, True],
         )
         .groupby("EMD_CODE", group_keys=False)
@@ -95,7 +92,7 @@ def select_case_trips(top_regions, route_df, cases_per_region):
 
 
 def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(11, 7))
+    fig, ax = plt.subplots(figsize=(16, 9))
 
     labels = top_regions.apply(
         lambda row: f"{int(row['priority_rank'])}. {row['EMD_NAME'] if pd.notna(row['EMD_NAME']) else row['EMD_CODE']}",
@@ -110,7 +107,7 @@ def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
 
     for i, (_, row) in enumerate(top_regions.iterrows()):
         text = (
-            f"개선비율 {row['improve_ratio_pct']:.1f}% | "
+            f"개선비율 {row['improve_ratio_lower_bound_pct']:.1f}% | "
             f"평균 이탈비율 {row['avg_deviation_ratio']:.3f} | "
             f"trip {int(row['total_trips'])}건"
         )
@@ -123,10 +120,10 @@ def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
 
 
 def plot_region_priority_scatter(region_df: pd.DataFrame, top_regions: pd.DataFrame, out_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(16, 9))
 
     ax.scatter(
-        region_df["improve_ratio_pct"],
+        region_df["improve_ratio_lower_bound_pct"],
         region_df["avg_deviation_ratio"],
         s=region_df["total_trips"] * 10,
         alpha=0.4,
@@ -135,7 +132,7 @@ def plot_region_priority_scatter(region_df: pd.DataFrame, top_regions: pd.DataFr
 
     highlight = region_df[region_df["EMD_CODE"].isin(top_regions["EMD_CODE"])]
     ax.scatter(
-        highlight["improve_ratio_pct"],
+        highlight["improve_ratio_lower_bound_pct"],
         highlight["avg_deviation_ratio"],
         s=highlight["total_trips"] * 12,
         alpha=0.9,
@@ -146,14 +143,14 @@ def plot_region_priority_scatter(region_df: pd.DataFrame, top_regions: pd.DataFr
         label = row["EMD_NAME"] if pd.notna(row["EMD_NAME"]) else row["EMD_CODE"]
         ax.annotate(
             label,
-            (row["improve_ratio_pct"], row["avg_deviation_ratio"]),
+            (row["improve_ratio_lower_bound_pct"], row["avg_deviation_ratio"]),
             xytext=(5, 5),
             textcoords="offset points",
             fontsize=9,
         )
 
     ax.set_title("지역 우선순위 산점도")
-    ax.set_xlabel("improve_ratio_pct (%)")
+    ax.set_xlabel("improve_ratio_lower_bound_pct (%)")
     ax.set_ylabel("avg_deviation_ratio")
     ax.grid(alpha=0.3)
     ax.legend()
@@ -173,7 +170,7 @@ def plot_region_choropleth(region_df: pd.DataFrame, gpd_emd: gpd.GeoDataFrame, o
 
     merged = geo.merge(data, left_on="EMD_CD", right_on="EMD_CODE", how="left")
 
-    fig, ax = plt.subplots(figsize=(11, 11))
+    fig, ax = plt.subplots(figsize=(16, 9))
     geo.plot(ax=ax, color="#f2f2f2", linewidth=0.2, edgecolor="white")
     merged.dropna(subset=["severity_score"]).plot(
         ax=ax,
@@ -206,7 +203,7 @@ def plot_top_region_boxplot(route_top_df: pd.DataFrame, top_regions: pd.DataFram
     if not data:
         return
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    fig, ax = plt.subplots(figsize=(16, 9))
     box = ax.boxplot(data, patch_artist=True, labels=labels)
     for patch in box["boxes"]:
         patch.set_alpha(0.6)
@@ -227,33 +224,33 @@ def plot_policy_scatter(route_top_df: pd.DataFrame, selected_cases: pd.DataFrame
     df = route_top_df.copy()
     df["deviation_score"] = df["deviation_ratio"] * df["mean_confidence"]
 
-    fig, ax = plt.subplots(figsize=(11, 8))
+    fig, ax = plt.subplots(figsize=(16, 9))
 
     for label, part in df.groupby("improve_required"):
         ax.scatter(
             part["deviation_score"],
-            part["longest_deviation"],
+            part["longest_deviation_ratio"],
             s=part["separation"] * 120,
             alpha=0.7,
             label=f"improve_required={label}",
         )
 
-    ax.axvline(0.2, linestyle="--", alpha=0.8)
-    ax.axhline(10, linestyle="--", alpha=0.8)
+    # ax.axvline(0.2, linestyle="--", alpha=0.8)
+    # ax.axhline(10, linestyle="--", alpha=0.8)
 
     for _, row in selected_cases.iterrows():
         label = row["EMD_NAME"] if pd.notna(row["EMD_NAME"]) else row["EMD_CODE"]
         ax.annotate(
             f"{label} / {row['TRIP_NO']}",
-            (row["deviation_score"], row["longest_deviation"]),
+            (row["deviation_score"], row["longest_deviation_ratio"]),
             xytext=(5, 5),
             textcoords="offset points",
             fontsize=8,
         )
 
     ax.set_title("Top 지역 trip의 개선 판정 기준 시각화")
-    ax.set_xlabel("deviation_score = deviation_ratio × mean_confidence")
-    ax.set_ylabel("longest_deviation")
+    ax.set_xlabel("deviation_score")
+    ax.set_ylabel("longest_deviation_ratio")
     ax.grid(alpha=0.3)
     ax.legend()
 
@@ -325,7 +322,7 @@ def plot_case_map(
     deviation_ratio: {case_row['deviation_ratio']:.3f}<br>
     mean_confidence: {case_row['mean_confidence']:.3f}<br>
     deviation_score: {case_row['deviation_score']:.3f}<br>
-    longest_deviation: {case_row['longest_deviation']:.1f}<br>
+    longest_deviation_ratio: {case_row['longest_deviation_ratio']:.1f}<br>
     separation: {case_row['separation']:.3f}<br>
     dtw: {case_row['dtw']:.1f}
     """
@@ -365,7 +362,7 @@ def plot_case_distance_profile(case_row: pd.Series, out_path: Path) -> None:
     ax.set_title(
         f"거리 프로파일 | TRIP_NO={case_row['TRIP_NO']} | "
         f"deviation_ratio={case_row['deviation_ratio']:.3f}, "
-        f"longest_deviation={case_row['longest_deviation']:.1f}"
+        f"longest_deviation_ratio={case_row['longest_deviation_ratio']:.1f}"
     )
     ax.set_xlabel("정렬 index")
     ax.set_ylabel("거리")
