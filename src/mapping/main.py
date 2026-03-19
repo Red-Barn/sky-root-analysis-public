@@ -1,7 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 
-from src.config.settings import COMPRESSED_DATA_DIR, MAPPING_DATA_DIR
+from src.config.settings import CLEANING_DATA_DIR, MAPPING_DATA_DIR
 from src.config.runtime import create_runtime_context
 from src.data.loader import load_air_bus, load_city_bus
 from src.trajectory.builder import normal_paths, transport_path
@@ -17,7 +17,7 @@ def run_mapping():
     airbusrootDF = load_air_bus()
     citybusrootDF = load_city_bus()
     
-    for file_path in tqdm(list(COMPRESSED_DATA_DIR.glob("*.csv")), desc="Mapping files", position=0):
+    for file_path in tqdm(list(CLEANING_DATA_DIR.glob("*.csv")), desc="Mapping files", position=0):
         peopleDF = pd.read_csv(file_path)
         
         # 공항버스
