@@ -22,6 +22,7 @@ def check_paths_city_bus_stops_GPU(paths, bus_stops, bus_threshold_m=50, device 
         path_points = torch.tensor(coords).to(device)
         bus_distances = harversine_torch(path_points, bus_stop_coords)  # harversine 거리 계산
         near_bus_stops = bus_distances <= bus_threshold_m
+        torch.cuda.empty_cache()
 
         for i in range(len(times)):
             time = times[i]
