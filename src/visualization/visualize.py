@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.analysis.route.analyzer import extract_actual_trip_coords
-from src.analysis.route.generation import get_candidate_routes_info
+from src.analysis.extraction.extractor import extract_actual_trip_coords
+from src.analysis.extraction.generation import get_candidate_routes_info
 from src.data.loader import load_all_api_info, load_all_trips, load_analysis_region, load_analysis_trips, load_gpd_emd
 
 
@@ -63,7 +63,7 @@ def parse_bool_list(value: object) -> List[bool]:
     return result
 
 
-def select_case_trips(top_regions, route_df, cases_per_region):
+def select_case_trips(top_regions, route_df):
     top_region_codes = set(top_regions["EMD_CODE"].astype(str))
 
     df = route_df.copy()
@@ -82,8 +82,6 @@ def select_case_trips(top_regions, route_df, cases_per_region):
             by=["EMD_CODE", "improve_required", "deviation_score", "longest_deviation_ratio", "separation", "dtw"],
             ascending=[True, False, False, False, False, True],
         )
-        .groupby("EMD_CODE", group_keys=False)
-        .head(cases_per_region)
         .sort_values(["priority_rank", "deviation_score"], ascending=[True, False])
         .reset_index(drop=True)
     )
@@ -302,27 +300,7 @@ def plot_case_map(
         ).add_to(fmap)
         folium.Marker(actual_coords[0], tooltip="출발", icon=folium.Icon(color="green")).add_to(fmap)
         folium.Marker(actual_coords[-1], tooltip="도착", icon=folium.Icon(color="black")).add_to(fmap)
-
-    info_html = f"""
-    <b>대표 사례</b><br>
-    지역: {case_row['EMD_NAME'] if pd.notna(case_row['EMD_NAME']) else case_row['EMD_CODE']}<br>
-    TRIP_NO: {case_row['TRIP_NO']}<br>
-    best_route_idx: {case_row['best_route_idx']}<br>
-    improve_required: {bool(case_row['improve_required'])}<br>
-    deviation_ratio: {case_row['deviation_ratio']:.3f}<br>
-    mean_confidence: {case_row['mean_confidence']:.3f}<br>
-    deviation_score: {case_row['deviation_score']:.3f}<br>
-    longest_deviation_ratio: {case_row['longest_deviation_ratio']:.1f}<br>
-    separation: {case_row['separation']:.3f}<br>
-    dtw: {case_row['dtw']:.1f}
-    """
-    folium.Marker(
-        location=[center_lat, center_lon],
-        popup=folium.Popup(info_html, max_width=320),
-        tooltip="대표 사례 정보",
-        icon=folium.Icon(color="blue", icon="info-sign"),
-    ).add_to(fmap)
-
+        
     min_lat = min(lat for lat, _ in all_coords)
     max_lat = max(lat for lat, _ in all_coords)
     min_lon = min(lon for _, lon in all_coords)
@@ -383,7 +361,7 @@ def prepare_inputs():
 
 
 
-def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir, top_n, cases_per_region):
+def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir, top_n):
     ensure_dir(out_dir)
     case_dir = out_dir / "case_maps"
     ensure_dir(case_dir)
@@ -394,7 +372,7 @@ def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir
     route_top_df = route_top_df.merge(top_regions[["EMD_CODE", "EMD_NAME", "priority_rank"]],on="EMD_CODE",how="left")
     route_top_df["deviation_score"] = route_top_df["deviation_ratio"] * route_top_df["mean_confidence"]
 
-    selected_cases = select_case_trips(top_regions, route_df, cases_per_region)
+    selected_cases = select_case_trips(top_regions, route_df)
 
     top_regions.to_csv(out_dir / "top_regions_summary.csv", index=False, encoding="utf-8-sig")
     selected_cases.to_csv(out_dir / "selected_case_trips.csv", index=False, encoding="utf-8-sig")
@@ -410,8 +388,10 @@ def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir
         best_route_idx = case_row["best_route_idx"]
         emd_name = case_row["EMD_NAME"]
         rank = int(case_row["priority_rank"])
-        prefix = f"rank{rank:02d}_{emd_name}_{trip_no}_{best_route_idx}"
-
+        prefix = f"{trip_no}_{best_route_idx}"
+        
+        emd_dir = case_dir / f"{rank:02d}_{emd_name}"
+        ensure_dir(emd_dir)
         actual_coords = build_actual_coords_for_trip(processed_df, trip_no)
         candidate_coords = build_candidate_coords_for_trip(api_df, trip_no, best_route_idx)
 
@@ -420,11 +400,11 @@ def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir
             candidate_coords=candidate_coords,
             case_row=case_row,
             gpd_emd=gpd_emd,
-            out_path=case_dir / f"{prefix}_map.html",
+            out_path=emd_dir / f"{prefix}_map.html",
         )
         plot_case_distance_profile(
             case_row=case_row,
-            out_path=case_dir / f"{prefix}_distance_profile.png",
+            out_path=emd_dir / f"{prefix}_distance_profile.png",
         )
         
 
@@ -438,7 +418,6 @@ def main():
         gpd_emd=gpd_emd,
         out_dir=Path("result/report_figures"),
         top_n=10,
-        cases_per_region=1,
     )
 
 

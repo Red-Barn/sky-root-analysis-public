@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.analysis.route.analyzer import extract_actual_trip_coords
-from src.analysis.route.generation import get_candidate_routes_info
+from src.analysis.extraction.extractor import extract_actual_trip_coords
+from src.analysis.extraction.generation import get_candidate_routes_info
 from src.data.loader import load_all_api_info, load_all_trips, load_analysis_region, load_analysis_trips, load_gpd_emd
 
 
@@ -144,26 +144,7 @@ def plot_case_map(
         ).add_to(fmap)
         folium.Marker(actual_coords[0], tooltip="출발", icon=folium.Icon(color="green")).add_to(fmap)
         folium.Marker(actual_coords[-1], tooltip="도착", icon=folium.Icon(color="black")).add_to(fmap)
-
-    info_html = f"""
-    <b>대표 사례</b><br>
-    지역: {case_row['EMD_NAME'] if pd.notna(case_row['EMD_NAME']) else case_row['EMD_CODE']}<br>
-    TRIP_NO: {case_row['TRIP_NO']}<br>
-    best_route_idx: {case_row['best_route_idx']}<br>
-    improve_required: {bool(case_row['improve_required'])}<br>
-    deviation_ratio: {case_row['deviation_ratio']:.3f}<br>
-    mean_confidence: {case_row['mean_confidence']:.3f}<br>
-    deviation_score: {case_row['deviation_score']:.3f}<br>
-    longest_deviation_ratio: {case_row['longest_deviation_ratio']:.1f}<br>
-    separation: {case_row['separation']:.3f}<br>
-    dtw: {case_row['dtw']:.1f}
-    """
-    folium.Marker(
-        location=[center_lat, center_lon],
-        popup=folium.Popup(info_html, max_width=320),
-        tooltip="대표 사례 정보",
-        icon=folium.Icon(color="blue", icon="info-sign"),
-    ).add_to(fmap)
+        
 
     min_lat = min(lat for lat, _ in all_coords)
     max_lat = max(lat for lat, _ in all_coords)
@@ -264,7 +245,7 @@ def main():
         api_df=api_df,
         gpd_emd=gpd_emd,
         out_dir=Path("result/report_figures/test_maps"),
-        trip_no="TRIP_697114",
+        trip_no="TRIP_439053",
     )
 
 
