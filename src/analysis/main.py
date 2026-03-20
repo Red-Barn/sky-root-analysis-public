@@ -57,7 +57,6 @@ def run_analysis_regions():
 
 
 if __name__ == "__main__":
-    run_build_candidate_total_info_cache()
     run_extract_best_routes()
     run_analysis_routes()
     run_analysis_regions()

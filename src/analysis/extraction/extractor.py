@@ -39,7 +39,7 @@ def extract_candidate_trip(trip_no, df_trip, df_api_info):
         "best_route_idx": best_idx,
         "dtw": metrics["dtw"],
         "alignment": metrics["alignment"],
-        "distances": metrics["distances"],
+        "distances": metrics["distances"].tolist(),
     }
     
 def extract_candidate_trips(df):
