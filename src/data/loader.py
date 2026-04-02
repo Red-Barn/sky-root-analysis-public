@@ -5,55 +5,55 @@ from src.config.settings import OPEN_DATA_DIR, DATA_DIR, RESULT_REGION_DIR, RESU
 
 
 @lru_cache
-def load_city_bus():
+def load_city_bus() -> pd.DataFrame:
     return pd.read_csv(
         OPEN_DATA_DIR / "도시버스노선별정류소정보"
     )
       
 @lru_cache
-def load_air_bus():
+def load_air_bus() -> pd.DataFrame:
     return pd.read_csv(
         OPEN_DATA_DIR / "인천공항버스노선별정류소정보"
     )
     
 @lru_cache
-def load_emd():
+def load_emd() -> pd.DataFrame:
     return pd.read_json(
         OPEN_DATA_DIR / "emd_WGS84.json"
     )
 
 @lru_cache
-def load_gpd_emd():
+def load_gpd_emd() -> gpd.GeoDataFrame:
     return gpd.read_file(
         OPEN_DATA_DIR / "emd_WGS84.json"
     )
       
 @lru_cache
-def load_all_trips():
+def load_all_trips() -> pd.DataFrame:
     return pd.read_csv(
         DATA_DIR / "filtered_all_trips.csv"
     )
     
 @lru_cache
-def load_all_api_info():
+def load_all_api_info() -> pd.DataFrame:
     return pd.read_csv(
         DATA_DIR / "total_api_info.csv"
     )
 
 @lru_cache
-def load_extracted_trips():
+def load_extracted_trips() -> pd.DataFrame:
     return pd.read_csv(
         RESULT_EXTRACTION_DIR / "extracted_best_routes.csv"
     )
     
 @lru_cache
-def load_analysis_trips():
+def load_analysis_trips() -> pd.DataFrame:
     return pd.read_csv(
         RESULT_TRIP_DIR / "routes_analysis_all_trips.csv"
     )
     
 @lru_cache
-def load_analysis_region():
+def load_analysis_region() -> pd.DataFrame:
     return pd.read_csv(
         RESULT_REGION_DIR / "region_analysis_all_trips.csv"
     )

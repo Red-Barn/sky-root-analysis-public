@@ -8,7 +8,7 @@ from src.config.settings import PROCESSED_DATA_DIR, DATA_DIR
 
 AIRPORT_EMD = 28110147  # 인천공항
 
-def sum_all_dataframes():
+def sum_all_dataframes() -> pd.DataFrame:
     all_tripDF = pd.DataFrame()
     results = []
     
@@ -20,7 +20,7 @@ def sum_all_dataframes():
     return all_tripDF
 
 
-def get_exit_time(trip_group):
+def get_exit_time(trip_group: pd.DataFrame) -> pd.Timestamp:
     start_emd = trip_group.iloc[0]["EMD_CODE"]
     exited = trip_group[trip_group["EMD_CODE"] != start_emd]
     
@@ -30,7 +30,7 @@ def get_exit_time(trip_group):
     return pd.to_datetime(exited.iloc[0]["DPR_MT1_UNIT_TM"])
 
 
-def get_airport_entry_time(trip_group):
+def get_airport_entry_time(trip_group: pd.DataFrame) -> pd.Timestamp:
     airport = trip_group[trip_group["EMD_CODE"] == AIRPORT_EMD]
     
     if airport.empty:
@@ -39,14 +39,14 @@ def get_airport_entry_time(trip_group):
     return pd.to_datetime(airport.iloc[0]["DPR_MT1_UNIT_TM"])
 
 
-def get_airport_exit_time(trip_group):
+def get_airport_exit_time(trip_group: pd.DataFrame) -> pd.Timestamp:
     if trip_group.iloc[-1]["EMD_CODE"] != AIRPORT_EMD:
         return None
     
     return pd.to_datetime(trip_group.iloc[-1]["DPR_MT1_UNIT_TM"])
 
 
-def get_access_time(trip_group):
+def get_access_time(trip_group: pd.DataFrame) -> tuple[float, float]:
     exit_time = get_exit_time(trip_group)
     entry_time = get_airport_entry_time(trip_group)
     final_time = get_airport_exit_time(trip_group)
@@ -60,7 +60,8 @@ def get_access_time(trip_group):
     return tail_time, body_time
 
 
-def get_boxplot(trip_df):
+def get_boxplot(trip_df: pd.DataFrame) -> tuple[list, dict]:
+    """boxplot에 필요한 시간 정보 추출"""
     body_access_times = defaultdict(list)
     tail_access_times = list()
     
@@ -77,7 +78,11 @@ def get_boxplot(trip_df):
     return tail_access_times, body_access_times
         
                 
-def get_body_outlier(access_times):
+def get_body_outlier(access_times: dict) -> dict:
+    """
+    경유 노선을 동일 지역에서 출발하는 모든 경로에 대해 upper를 넘는 시간의 노선으로 판단
+    boxplot 데이터를 csv로 저장
+    """
     bounds = {}
     results = []
     
@@ -100,7 +105,11 @@ def get_body_outlier(access_times):
     return bounds
 
 
-def get_tail_outlier(access_times):
+def get_tail_outlier(access_times: list) -> float:
+    """
+    공항 지연 데이터를 마지막 EMD 도착후 지난 모든 시간에 대해 upper를 넘는 시간의 노선으로 판단
+    boxplot 데이터를 시각화하여 저장
+    """
     Q1 = np.percentile(access_times, 25)
     Q2 = np.percentile(access_times, 50)
     Q3 = np.percentile(access_times, 75)
@@ -144,7 +153,20 @@ def get_tail_outlier(access_times):
     return upper
 
 
-def outlier_filter(trip_df, bounds, upper):
+def outlier_filter(trip_df: pd.DataFrame, bounds: dict, upper: float) -> pd.DataFrame:
+    """
+    body_time : 동일 EMD들의 출발 EMD 탈출 후 마지막 EMD 도착까지 걸리는 시간 리스트의 딕셔너리
+    tail_time : 모든 경로의 마지막 EMD 도착 후 경로가 끝날 때까지 걸리는 시간의 리스트
+    각 time의 upper를 넘는 경로를 각각 경유 노선, 이상치로 판단하여 제거
+
+    Args:
+        trip_df (pd.DataFrame): 실제 이동 데이터프레임
+        bounds (dict): body_time 딕셔너리
+        upper (float): tail_time 리스트의 upper 값
+
+    Returns:
+        pd.DataFrame: 경유 노선 및 이상치가 제거된 데이터프레임
+    """
     filtered_results = []
     grouped = trip_df.groupby("TRIP_NO")
     

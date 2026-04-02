@@ -4,8 +4,8 @@ from tqdm import tqdm
 from src.config.settings import CLEANING_DATA_DIR, MAPPING_DATA_DIR
 from src.config.runtime import create_runtime_context
 from src.data.loader import load_air_bus, load_city_bus
-from src.trajectory.builder import normal_paths, transport_path
 
+from src.mapping.bus.builder import normal_paths, transport_path
 from src.mapping.bus.airport_bus import check_paths_air_bus_stops_GPU
 from src.mapping.bus.city_bus import check_paths_city_bus_stops_GPU
 from src.mapping.bus.intersection import find_routes_passing_stops
@@ -20,16 +20,17 @@ def run_mapping():
     for file_path in tqdm(list(CLEANING_DATA_DIR.glob("*.csv")), desc="Mapping files", position=0):
         peopleDF = pd.read_csv(file_path)
         
-        # 공항버스
+        # 공항버스 매핑
         peopletraj = normal_paths(peopleDF)
         airport_bus = check_paths_air_bus_stops_GPU(peopletraj, airbusrootDF, ctx.distance.bus_threshold_m, ctx.device)
         
+
         output = peopleDF[peopleDF['TRIP_NO'].isin(airport_bus.keys())].copy()
         output[['BUS_ID', 'STATION', 'TRANSPORT_TYPE']] = None
         
         update_air_bus_output(output, airport_bus)
                     
-        # 도시버스
+        # 도시버스 매핑
         peopletraj = transport_path(output)
         city_bus = check_paths_city_bus_stops_GPU(peopletraj, citybusrootDF, ctx.distance.bus_threshold_m, ctx.device)
         city_bus = find_routes_passing_stops(city_bus)

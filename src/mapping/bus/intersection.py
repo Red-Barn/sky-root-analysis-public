@@ -1,6 +1,16 @@
 from tqdm import tqdm
 
-def find_routes_passing_stops(bus):
+def find_routes_passing_stops(bus: dict) -> dict:
+    """
+    도시버스의 특성상 겹치는 버스정류장이 많기에 출발지부터 공항버스 탑승 전까지 도시 버스정류장의 교집합을 통해 버스정류장 매핑
+    도시버스의 정류장 이동이 최소 3정류장 이상일때만 매핑
+
+    Args:
+        bus (dict): 도시버스의 매핑 데이터
+
+    Returns:
+        dict: 교집합을 통해 정제된 매핑 데이터
+    """
     check_normal_bus = {}
     
     for key, values in tqdm(bus.items(), total=len(bus), desc='Intersecting paths', position=1, leave=False):
@@ -22,7 +32,9 @@ def find_routes_passing_stops(bus):
 
             current_intersection = set(current_intersection).intersection(root)
        
-            if not current_intersection:    # 공집합
+            # 새로운 정류장 교집합 계산시 공집합
+            if not current_intersection:
+                # 전 교집합의 개수가 2개 초과면 저장
                 if intersection_count > 2:
                     for (t, s) in zip(temp_times, temp_stops):
                         results.append([t, list(previous_intersection), s, '일반버스'])
@@ -33,6 +45,7 @@ def find_routes_passing_stops(bus):
                 temp_stops = [stop]
                 temp_times = [time]
                 intersection_count = 1
+            # 새로운 정류장 교집합 계산시 교집합
             else:
                 previous_intersection = current_intersection
                 temp_stops.append(stop)

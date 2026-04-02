@@ -5,15 +5,15 @@ from tqdm import tqdm
 from pathlib import Path
 
 from src.config.runtime import create_runtime_context
-from src.trajectory.haversine import harversine_numpy
+from src.trajectory.haversine import harversine_degree
 
 
-def _speed_kmh(distance_m: float, start_tm, end_tm) -> float:
-    seconds = (pd.Timestamp(end_tm) - pd.Timestamp(start_tm)).total_seconds()
+def speed_kmh(distance_m: float, start_tm: pd.Timestamp, end_tm: pd.Timestamp) -> float:
+    seconds = (end_tm - start_tm).total_seconds()
     return float(distance_m / seconds * 3.6)
 
 
-def prepare_input(df):
+def prepare_input(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     
     for col in ["DPR_MT1_UNIT_TM", "ARV_MT1_UNIT_TM"]:
@@ -25,39 +25,40 @@ def prepare_input(df):
     return df
 
 
-def _recalc_row_speed(row):
-    dist_m = harversine_numpy(
+def recalc_row_speed(row: pd.Series) -> float:
+    dist_m = harversine_degree(
         row["DPR_CELL_XCRD"],
         row["DPR_CELL_YCRD"],
         row["ARV_CELL_XCRD"],
         row["ARV_CELL_YCRD"],
     )
-    return _speed_kmh(dist_m, row["DPR_MT1_UNIT_TM"], row["ARV_MT1_UNIT_TM"])
+    return speed_kmh(dist_m, row["DPR_MT1_UNIT_TM"], row["ARV_MT1_UNIT_TM"])
 
 
-def _is_spike_pair(prev_row, cur_row, next_row, policy):
-    d_in = harversine_numpy(
+def is_spike_pair(prev_row: pd.Series, cur_row: pd.Series, next_row: pd.Series, policy) -> bool:
+    """현재 row가 spike인지 판단"""
+    d_in = harversine_degree(
         prev_row["DPR_CELL_XCRD"],
         prev_row["DPR_CELL_YCRD"],
         cur_row["DPR_CELL_XCRD"],
         cur_row["DPR_CELL_YCRD"],
     )
-    d_out = harversine_numpy(
+    d_out = harversine_degree(
         cur_row["DPR_CELL_XCRD"],
         cur_row["DPR_CELL_YCRD"],
         next_row["DPR_CELL_XCRD"],
         next_row["DPR_CELL_YCRD"],
     )
-    d_skip = harversine_numpy(
+    d_skip = harversine_degree(
         prev_row["DPR_CELL_XCRD"],
         prev_row["DPR_CELL_YCRD"],
         next_row["DPR_CELL_XCRD"],
         next_row["DPR_CELL_YCRD"],
     )
 
-    v_in = _speed_kmh(d_in, prev_row["DPR_MT1_UNIT_TM"], cur_row["DPR_MT1_UNIT_TM"])
-    v_out = _speed_kmh(d_out, cur_row["DPR_MT1_UNIT_TM"], next_row["DPR_MT1_UNIT_TM"])
-    v_skip = _speed_kmh(d_skip, prev_row["DPR_MT1_UNIT_TM"], next_row["DPR_MT1_UNIT_TM"])
+    v_in = speed_kmh(d_in, prev_row["DPR_MT1_UNIT_TM"], cur_row["DPR_MT1_UNIT_TM"])
+    v_out = speed_kmh(d_out, cur_row["DPR_MT1_UNIT_TM"], next_row["DPR_MT1_UNIT_TM"])
+    v_skip = speed_kmh(d_skip, prev_row["DPR_MT1_UNIT_TM"], next_row["DPR_MT1_UNIT_TM"])
 
     bad_in = (d_in >= policy.max_spike_distance_m) or (v_in >= policy.max_speed_kmh)
     bad_out = (d_out >= policy.max_spike_distance_m) or (v_out >= policy.max_speed_kmh)
@@ -66,23 +67,20 @@ def _is_spike_pair(prev_row, cur_row, next_row, policy):
     return bool(bad_in and bad_out and recover_skip)
 
 
-def _merge_two_rows(prev_row, next_row):
-    """중간 point 하나를 제거한 것처럼 prev_row 를 next_row 도착점까지 확장."""
+def merge_two_rows(prev_row: pd.Series, next_row: pd.Series) -> pd.Series:
+    """spike 제거시 이전, 이후 row 데이터의 연속성 유지"""
     merged = prev_row.copy()
     merged["ARV_MT1_UNIT_TM"] = next_row["DPR_MT1_UNIT_TM"]
     merged["ARV_CELL_ID"] = next_row["DPR_CELL_ID"]
     merged["ARV_CELL_XCRD"] = next_row["DPR_CELL_XCRD"]
     merged["ARV_CELL_YCRD"] = next_row["DPR_CELL_YCRD"]
-    merged["DYNA_MVMT_SPED"] = _recalc_row_speed(merged)
+    merged["DYNA_MVMT_SPED"] = recalc_row_speed(merged)
 
     return merged
 
 
-def remove_spike_points(trip_df, policy):
-    """
-    중간에 한 점이 튄 경우,
-    [이전 row] + [다음 row] 를 합쳐서 점 하나를 삭제한 효과를 만든다.
-    """
+def remove_spike_points(trip_df: pd.DataFrame, policy) -> tuple[pd.DataFrame, int]:
+    """spike 제거 및 데이터 연속성 유지"""
     rows: List[pd.Series] = [row.copy() for _, row in trip_df.iterrows()]
     removed_count = 0
     i = 1
@@ -92,13 +90,14 @@ def remove_spike_points(trip_df, policy):
         cur_row = rows[i]
         next_row = rows[i + 1]
 
-        if _is_spike_pair(prev_row, cur_row, next_row, policy):
-            rows[i - 1] = _merge_two_rows(prev_row, next_row)
+        if is_spike_pair(prev_row, cur_row, next_row, policy):
+            rows[i - 1] = merge_two_rows(prev_row, next_row)
             del rows[i]
             removed_count += 1
             if i > 1:
-                i -= 1  # 이전 점과도 spike 여부 재검사
-            continue
+                i -= 1  # 변경된 이전 row의 spike 가능성 여부 검사
+                
+            continue    # del 후 row 인덱스가 -1 되어서 continue로 다음 루프 진입하여 i 증가 방지
         i += 1
 
     cleaned = pd.DataFrame(rows)
@@ -106,7 +105,7 @@ def remove_spike_points(trip_df, policy):
     return cleaned, removed_count
 
 
-def clean_trip_points(df, policy):
+def clean_trip_points(df: pd.DataFrame, policy) -> tuple[pd.DataFrame, list]:
     df = prepare_input(df)
     original_columns = df.columns.tolist()
 
@@ -120,7 +119,7 @@ def clean_trip_points(df, policy):
         
         trip_df, spike_removed = remove_spike_points(trip_df, policy)
 
-        # Check if the cleaned trip has enough points
+        # spike 제거 후 데이터가 너무 적은 경우 전체 trip 제거
         if len(trip_df) < policy.min_trip_points:
             continue
 

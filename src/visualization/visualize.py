@@ -1,6 +1,6 @@
 import ast
 from pathlib import Path
-from typing import List, Sequence, Tuple
+from typing import List, Sequence, Tuple, Any
 
 import folium
 import geopandas as gpd
@@ -17,11 +17,12 @@ plt.rcParams["font.family"] = "Malgun Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 
 
-def ensure_dir(path):
+def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def add_region_names(region_df, gpd_emd):
+def add_region_names(region_df: pd.DataFrame, gpd_emd: gpd.GeoDataFrame) -> pd.DataFrame:
+    """지역 분석 결과에 EMD_CODE 추가"""
     meta = gpd_emd[["EMD_CD", "EMD_KOR_NM"]].copy()
     out = region_df.copy()
 
@@ -31,12 +32,14 @@ def add_region_names(region_df, gpd_emd):
     return out
 
 
-def build_actual_coords_for_trip(processed_df, trip_no):
+def build_actual_coords_for_trip(processed_df: pd.DataFrame, trip_no: str) -> list[tuple[float, float]]:
+    """actual 좌표 추출"""
     trip_df = processed_df[processed_df["TRIP_NO"] == trip_no].copy()
     return extract_actual_trip_coords(trip_df)
 
 
-def build_candidate_coords_for_trip(api_df, trip_no, best_route_idx):
+def build_candidate_coords_for_trip(api_df: pd.DataFrame, trip_no: str, best_route_idx: int) -> list[tuple[float, float]]:
+    """api candidate 좌표 추출"""
     candidate_routes = get_candidate_routes_info(trip_no, api_df)
     for route in candidate_routes:
         if int(route["ROUTE_NO"]) == int(best_route_idx):
@@ -44,7 +47,8 @@ def build_candidate_coords_for_trip(api_df, trip_no, best_route_idx):
     return []
 
 
-def parse_list(value: object) -> list:
+def parse_list(value: object) -> list[Any]:
+    """csv에서 list를 불러올 시 str을 list로 변경"""
     if isinstance(value, list):
         return value
     if pd.isna(value):
@@ -53,6 +57,7 @@ def parse_list(value: object) -> list:
 
 
 def parse_bool_list(value: object) -> List[bool]:
+    """csv에서 list를 불러올 시 bool 이라면 list 내부 str을 bool로 변경"""
     parsed = parse_list(value)
     result: List[bool] = []
     for item in parsed:
@@ -63,7 +68,8 @@ def parse_bool_list(value: object) -> List[bool]:
     return result
 
 
-def select_case_trips(top_regions, route_df):
+def select_case_trips(top_regions: pd.DataFrame, route_df: pd.DataFrame) -> pd.DataFrame:
+    """상위 지역의 경로 분석 데이터 추출"""
     top_region_codes = set(top_regions["EMD_CODE"].astype(str))
 
     df = route_df.copy()
@@ -90,6 +96,9 @@ def select_case_trips(top_regions, route_df):
 
 
 def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
+    """
+    상위 지역의 개선 필요 심각도의 막대그래프
+    """
     fig, ax = plt.subplots(figsize=(16, 9))
 
     labels = top_regions.apply(
@@ -106,11 +115,12 @@ def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
     for i, (_, row) in enumerate(top_regions.iterrows()):
         text = (
             f"개선비율 {row['improve_ratio_lower_bound_pct']:.1f}% | "
-            f"평균 이탈비율 {row['avg_deviation_ratio']:.3f} | "
+            f"평균 이탈비율 {row['avg_deviation_ratio'] * 100:.1f}% | "
             f"trip {int(row['total_trips'])}건"
         )
-        ax.text(row["severity_score"], i, f"  {text}", va="center", fontsize=9)
+        ax.text(1.01, row["severity_score"], i, text, va="center", fontsize=9)
 
+    fig.subplots_adjust(right=0.8)
     fig.tight_layout()
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -118,6 +128,13 @@ def plot_top_regions_bar(top_regions: pd.DataFrame, out_path: Path) -> None:
 
 
 def plot_region_priority_scatter(region_df: pd.DataFrame, top_regions: pd.DataFrame, out_path: Path) -> None:
+    """
+    전체 지역별 산점도
+    x: 표본 수를 고려한 지역별 개선 필요 비율 %
+    y: 지역별 평균 경로 이탈 비율
+    점 크기: 경로 개수
+    붉은 점: 상위 지역
+    """
     fig, ax = plt.subplots(figsize=(16, 9))
 
     ax.scatter(
@@ -160,6 +177,9 @@ def plot_region_priority_scatter(region_df: pd.DataFrame, top_regions: pd.DataFr
 
 
 def plot_region_choropleth(region_df: pd.DataFrame, gpd_emd: gpd.GeoDataFrame, out_path: Path) -> None:
+    """
+    지역별 개선 필요 심각도 지도 시각화 
+    """
     geo = gpd_emd.copy()
     geo["EMD_CD"] = geo["EMD_CD"].astype(str)
 
@@ -188,6 +208,9 @@ def plot_region_choropleth(region_df: pd.DataFrame, gpd_emd: gpd.GeoDataFrame, o
 
 
 def plot_top_region_boxplot(route_top_df: pd.DataFrame, top_regions: pd.DataFrame, out_path: Path) -> None:
+    """
+    상위 지역 경로들의 이탈 비율 boxplot
+    """
     data = []
     labels = []
 
@@ -219,6 +242,12 @@ def plot_top_region_boxplot(route_top_df: pd.DataFrame, top_regions: pd.DataFram
 
 
 def plot_policy_scatter(route_df: pd.DataFrame, out_path: Path) -> None:
+    """
+    전체 trip별 개선 필요 판정 시각화
+    x: 전체 경로의 이탈 점수
+    y: 군집의 분리도
+    점 크기: 최대 이탈 거리 비율
+    """
     df = route_df.copy()
     df["deviation_score"] = df["deviation_ratio"] * df["mean_confidence"]
 
@@ -255,6 +284,11 @@ def plot_case_map(
     gpd_emd: gpd.GeoDataFrame,
     out_path: Path,
 ) -> None:
+    """
+    상위 지역의 case별 지도 시각화
+    실제 경로: 파란색
+    후보 경로: 빨간색
+    """
     all_coords = list(actual_coords) + list(candidate_coords)
     if not all_coords:
         return
@@ -312,6 +346,11 @@ def plot_case_map(
 
 
 def plot_case_distance_profile(case_row: pd.Series, out_path: Path) -> None:
+    """
+    상위 지역의 경로 프로파일
+    x: 실제 경로 index
+    y: dtw path distance
+    """
     distances = [float(value) for value in parse_list(case_row["distances"])]
     is_deviated = parse_bool_list(case_row["is_deviated"])
 
@@ -343,7 +382,7 @@ def plot_case_distance_profile(case_row: pd.Series, out_path: Path) -> None:
 
 
 
-def prepare_inputs():
+def prepare_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, gpd.GeoDataFrame]:
     region_df = load_analysis_region().copy()
     route_df = load_analysis_trips().copy()
     processed_df = load_all_trips().copy()
@@ -361,7 +400,15 @@ def prepare_inputs():
 
 
 
-def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir, top_n):
+def generate_visuals(
+    region_df: pd.DataFrame, 
+    route_df: pd.DataFrame, 
+    processed_df: pd.DataFrame, 
+    api_df: pd.DataFrame, 
+    gpd_emd: gpd.GeoDataFrame, 
+    out_dir: Path, 
+    top_n: int,
+    ) -> None:
     ensure_dir(out_dir)
     case_dir = out_dir / "case_maps"
     ensure_dir(case_dir)
@@ -408,7 +455,7 @@ def generate_visuals(region_df, route_df, processed_df, api_df, gpd_emd, out_dir
         )
         
 
-def main():
+def run_visualization():
     region_df, route_df, processed_df, api_df, gpd_emd = prepare_inputs()
     generate_visuals(
         region_df=region_df,
@@ -422,4 +469,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_visualization()

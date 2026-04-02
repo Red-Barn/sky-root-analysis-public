@@ -1,12 +1,24 @@
 import pandas as pd
 import numpy as np
+from numpy.typing import NDArray
 
 
-def normalize(series):
+def normalize(series: pd.Series) -> pd.Series:
     return (series - series.min()) / (series.max() - series.min() + 1e-6)
 
 
-def wilson_lower_bound(successes, total, z=1.96):
+def wilson_lower_bound(successes: NDArray[np.int_], total: NDArray[np.int_], z=1.96) -> NDArray[np.float64]:
+    """
+    표본 수를 고려하여 보수적인 하한 값 계산
+    표본 수가 적을수록 같은 확률이어도 수치가 낮음
+
+    Args:
+        successes (NDArray[np.int_]): 개선 필요 경로 개수
+        total (NDArray[np.int_]): 전체 경로 수
+
+    Returns:
+        NDArray[np.float64]: 표본 수를 고려한 전체 경로 대비 개선 필요 경로 비율
+    """
     successes = np.asarray(successes, dtype=float)
     total = np.asarray(total, dtype=float)
 
@@ -24,11 +36,24 @@ def wilson_lower_bound(successes, total, z=1.96):
     return lower_bound
 
 
-def region_level_analysis(df, policy):
+def region_level_analysis(df: pd.DataFrame, policy) -> pd.DataFrame:
+    """
+    route 분석 결과를 EMD_CODE 단위로 묶어서 region 단위 분석
+    improve_ratio_lower_bound, avg_deviation_ratio, avg_longest_deviation_ratio를 사용해 need_attention, severity_score 계산
+
+    Args:
+        df (pd.DataFrame): route 단위 분석 결과 데이터프레임
+
+    Returns:
+        improve_ratio: 지역별 개선 필요 비율
+        improve_ratio_lower_bound: 표본 수를 고려한 지역별 개선 필요 비율
+        need_attention: 지역별 개선 필요성 여부 판단
+        severity_score: 지역별 개선 필요성 심각도
+    """
     df = df[df["EMD_CODE"].notna()].copy()
 
     df["improve_required"] = df["improve_required"].astype(bool)
-    for col in ["deviation_ratio", "mean_confidence", "longest_deviation", "separation"]:
+    for col in ["deviation_ratio", "mean_confidence", "longest_deviation", "longest_deviation_ratio", "separation"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     grouped = df.groupby("EMD_CODE").agg(

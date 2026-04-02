@@ -12,6 +12,16 @@ def compress_folder(input_dir: Path, output_dir: Path):
         compressed_df.to_csv(output_path, index=False)
         
 def compress_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    시간 순으로 정렬된 데이터프레임에서 DYNA_MVMT_SPED가 0 이고
+    DPR_CELL_ID가 동일한 연속된 구간을 하나의 행으로 압축하는 함수
+
+    Args:
+        df (pd.DataFrame): 원본 데이터프레임
+
+    Returns:
+        pd.DataFrame: 압축된 데이터프레임
+    """
     df = df.copy()
     df['DPR_MT1_UNIT_TM'] = pd.to_datetime(df['DPR_MT1_UNIT_TM'])
     df = df.sort_values(['TRIP_NO', 'DPR_MT1_UNIT_TM']).reset_index(drop=True)

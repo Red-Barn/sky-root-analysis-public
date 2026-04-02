@@ -1,20 +1,20 @@
+from typing import Any
 import pandas as pd
 import requests
 import polyline
 
-from src.data.loader import DATA_DIR
 from src.config.settings import API_KEY
 url = "https://maps.googleapis.com/maps/api/directions/json"
 
-def get_candidate_total_info(trip_no, data):
+def get_candidate_total_info(trip_no: str, data: dict[str, Any]) -> list[dict[str, Any]]:
     rows = []
     for route_no, route in enumerate(data["routes"]):
         for step in route["legs"][0]["steps"]:
             row = {
                 "TRIP_NO": trip_no,
                 "ROUTE_NO": route_no,
-                "DISTANCE": step["distance"]["value"],     # meters
-                "DURATION": step["duration"]["value"],     # seconds
+                "DISTANCE": step["distance"]["value"],     # 미터
+                "DURATION": step["duration"]["value"],     # 초
                 "START_LNG": step["start_location"]["lng"],
                 "START_LAT": step["start_location"]["lat"],
                 "END_LNG": step["end_location"]["lng"],
@@ -34,7 +34,17 @@ def get_candidate_total_info(trip_no, data):
             rows.append(row)
     return rows
 
-def get_candidate_routes_info(trip_no, df_api_info):
+def get_candidate_routes_info(trip_no: str, df_api_info: pd.DataFrame) -> list[dict[str, Any]]:
+    """
+    캐시로 저장된 후보 경로 데이터프레임을 list로 추출하여 반환
+
+    Args:
+        trip_no (str): TRIP_NO
+        df_api_info (pd.DataFrame): 후보 경로 데이터프레임
+
+    Returns:
+        list[dict[str, Any]]: [{TRIP_NO, ROUTE_NO, POINTS}]
+    """
     if df_api_info.empty:
         return []
 
@@ -59,16 +69,16 @@ def get_candidate_routes_info(trip_no, df_api_info):
 
     return rows
 
-def get_bus_candidate_routes(trip_no, origin_lat, origin_lon, dest_lat, dest_lon, departure_time):
+def get_bus_candidate_routes(trip_no: str, origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float, departure_time: int) -> list[dict[str, Any]]:
     
     params = {
         "origin": f"{origin_lat},{origin_lon}",
         "destination": f"{dest_lat},{dest_lon}",
         "departure_time": f"{departure_time}",
-        "mode": "transit",
-        "transit_mode": "bus",
-        "transit_routing_preference": "fewer_transfers",
-        "alternatives": "true",
+        "mode": "transit",  # 대중교통
+        "transit_mode": "bus",  # 버스
+        "transit_routing_preference": "fewer_transfers",    #최소 환승
+        "alternatives": "true", # 대안 노선 허용
         "language": "ko",
         "key": API_KEY
     }

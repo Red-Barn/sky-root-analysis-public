@@ -2,6 +2,8 @@ import os
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
+from pathlib import Path
+
 from src.analysis.route.analyzer import analyze_trips
 from src.analysis.extraction.extractor import extract_candidate_trips
 from src.analysis.extraction.api_info_bulider import build_total_api_info
@@ -11,7 +13,7 @@ from src.config.runtime import create_runtime_context
 from src.data.loader import load_all_trips, load_analysis_trips, load_extracted_trips
 
 
-def ensure_dir(path):
+def ensure_dir(path: Path):
     path.mkdir(parents=True, exist_ok=True)
 
 
