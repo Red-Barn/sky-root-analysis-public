@@ -1,9 +1,10 @@
 # 루트의 data 폴더 무시
-data/
-result/
+/data/*
+/result/*
 
 # 공공데이터는 무시 안함
-!data/open/**
+!/data/open/
+!/data/open/**
 
 # cache 무시
 __pycache__/
